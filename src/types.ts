@@ -25,6 +25,10 @@ export interface ApiResponse {
   trainServices?: TrainService[];
   locationName: string;
   crs: string;
-  nrccMessages?: string[];
+  nrccMessages?: NrccMessage[];
   generatedAt: string;
+}
+
+export interface NrccMessage {
+  value: string;
 }

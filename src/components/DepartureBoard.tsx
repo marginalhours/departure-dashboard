@@ -152,7 +152,7 @@ export default function DepartureBoard({
           <div className="border-2 border-black p-4 mb-6 bg-black text-white">
             {data.nrccMessages.map((msg, idx) => (
               <div key={idx} className="font-mono text-xs leading-relaxed">
-                {msg}
+                {msg.value}
               </div>
             ))}
           </div>
