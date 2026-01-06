@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { RailApiService } from '../services/railApi';
 import { ApiResponse, TrainService } from '../types';
+import { HeroCountdown } from './HeroCountdown';
+import { parseTrainTime, getMinutesUntilDeparture } from '../utils/timeUtils';
 
 interface DepartureBoardProps {
   apiKey: string;
@@ -13,6 +15,7 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   const REFRESH_INTERVAL = 5000; // 5 seconds
 
@@ -37,6 +40,14 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
     return () => clearInterval(interval);
   }, [apiKey, stationCode]);
 
+  // Update current time every second for smooth countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const formatTime = (time: string): string => {
     if (time === 'On time') return 'ON TIME';
     if (time === 'Cancelled') return 'CANC';
@@ -47,6 +58,26 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
   const getDestinationName = (service: TrainService): string => {
     return service.destination?.[0]?.locationName || 'Unknown';
   };
+
+  // Select the next train departing within 5 minutes for hero unit
+  const selectedTrain = useMemo(() => {
+    if (!data?.trainServices) return null;
+
+    const eligible = data.trainServices
+      .map((train) => {
+        const departureTime = parseTrainTime(train.std, train.etd);
+        if (!departureTime) return null;
+
+        const minutesUntil = getMinutesUntilDeparture(departureTime, currentTime);
+        if (minutesUntil > 5 || minutesUntil <= 0) return null;
+
+        return { train, departureTime, minutesUntil };
+      })
+      .filter((item): item is { train: TrainService; departureTime: Date; minutesUntil: number } => item !== null)
+      .sort((a, b) => a.minutesUntil - b.minutesUntil);
+
+    return eligible.length > 0 ? eligible[0] : null;
+  }, [data?.trainServices, currentTime]);
 
   if (loading && !data) {
     return (
@@ -105,6 +136,15 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
           </div>
         )}
 
+        {/* Hero Countdown - Next Departing Train */}
+        {selectedTrain && (
+          <HeroCountdown
+            train={selectedTrain.train}
+            departureTime={selectedTrain.departureTime}
+            currentTime={currentTime}
+          />
+        )}
+
         {/* Departures Table */}
         <div className="border-2 border-black">
           {/* Table Header */}
@@ -121,19 +161,33 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
               NO DEPARTURES
             </div>
           ) : (
-            data.trainServices.map((service, idx) => (
-              <div
-                key={service.serviceID || idx}
-                className={`grid grid-cols-12 gap-4 p-4 font-mono text-sm md:text-base ${
-                  idx !== data.trainServices!.length - 1 ? 'border-b border-black' : ''
-                }`}
-              >
-                <div className="col-span-2 font-bold">{service.std}</div>
-                <div className="col-span-5 truncate">{getDestinationName(service)}</div>
-                <div className="col-span-2">{service.platform || '-'}</div>
-                <div className="col-span-3 font-bold">{formatTime(service.etd)}</div>
-              </div>
-            ))
+            data.trainServices.map((service, idx) => {
+              // Compare using serviceID if available, otherwise use a combination of std, destination, and platform
+              const isHighlighted = selectedTrain
+                ? selectedTrain.train.serviceID && service.serviceID
+                  ? selectedTrain.train.serviceID === service.serviceID
+                  : selectedTrain.train.std === service.std &&
+                    selectedTrain.train.etd === service.etd &&
+                    getDestinationName(selectedTrain.train) === getDestinationName(service) &&
+                    selectedTrain.train.platform === service.platform
+                : false;
+
+              return (
+                <div
+                  key={service.serviceID || idx}
+                  className={`grid grid-cols-12 gap-4 p-4 font-mono text-sm md:text-base transition-colors ${
+                    isHighlighted ? 'bg-gray-50' : ''
+                  } ${
+                    idx !== data.trainServices!.length - 1 ? 'border-b border-black' : ''
+                  }`}
+                >
+                  <div className="col-span-2 font-bold">{service.std}</div>
+                  <div className="col-span-5 truncate">{getDestinationName(service)}</div>
+                  <div className="col-span-2">{service.platform || '-'}</div>
+                  <div className="col-span-3 font-bold">{formatTime(service.etd)}</div>
+                </div>
+              );
+            })
           )}
         </div>
 
