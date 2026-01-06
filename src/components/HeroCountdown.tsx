@@ -75,9 +75,14 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
   const originOuterY =
     center + tangentOuterRadius * Math.sin((originAngle * Math.PI) / 180);
 
-  // Arc connecting the outer ends of the two tangents
-  // Goes from origin (0 deg) to 3-minute mark (135 deg) - shortest path
-  const connectingArcPath = `M ${originOuterX} ${originOuterY} A ${tangentOuterRadius} ${tangentOuterRadius} 0 0 1 ${outerX} ${outerY}`;
+  // Combined path: both tangents + connecting arc for smooth corners
+  // Start at inner end of 3-min tangent, draw out, arc around, draw back in at origin
+  const warningIndicatorPath = `
+    M ${innerX} ${innerY}
+    L ${outerX} ${outerY}
+    A ${tangentOuterRadius} ${tangentOuterRadius} 0 0 0 ${originOuterX} ${originOuterY}
+    L ${originInnerX} ${originInnerY}
+  `.trim();
 
   const destination = getDestinationName(train);
   const platform = train.platform || "TBA";
@@ -106,32 +111,13 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
               strokeWidth={strokeWidth}
             />
 
-            {/* Tangent line - marks 3-minute threshold */}
-            <line
-              x1={innerX}
-              y1={innerY}
-              x2={outerX}
-              y2={outerY}
-              stroke="#000000"
-              strokeWidth={2}
-            />
-
-            {/* Tangent line - marks origin (0 minutes / departure time) */}
-            <line
-              x1={originInnerX}
-              y1={originInnerY}
-              x2={originOuterX}
-              y2={originOuterY}
-              stroke="#000000"
-              strokeWidth={2}
-            />
-
-            {/* Connecting arc - links the two tangent markers */}
+            {/* Warning indicator - combined tangents + arc for smooth corners */}
             <path
-              d={connectingArcPath}
+              d={warningIndicatorPath}
               fill="none"
               stroke="#000000"
               strokeWidth={2}
+              strokeLinejoin="round"
             />
 
             {/* Progress circle (black or gray) */}
