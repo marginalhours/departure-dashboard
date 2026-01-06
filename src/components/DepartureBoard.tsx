@@ -1,0 +1,147 @@
+import { useEffect, useState } from 'react';
+import { RailApiService } from '../services/railApi';
+import { ApiResponse, TrainService } from '../types';
+
+interface DepartureBoardProps {
+  apiKey: string;
+  stationCode: string;
+  onReset: () => void;
+}
+
+export default function DepartureBoard({ apiKey, stationCode, onReset }: DepartureBoardProps) {
+  const [data, setData] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  const REFRESH_INTERVAL = 5000; // 5 seconds
+
+  const fetchDepartures = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const railApi = new RailApiService(apiKey);
+      const response = await railApi.getDepartures(stationCode, 10);
+      setData(response);
+      setLastUpdate(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch departures');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDepartures();
+    const interval = setInterval(fetchDepartures, REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [apiKey, stationCode]);
+
+  const formatTime = (time: string): string => {
+    if (time === 'On time') return 'ON TIME';
+    if (time === 'Cancelled') return 'CANC';
+    if (time === 'Delayed') return 'DELAY';
+    return time;
+  };
+
+  const getDestinationName = (service: TrainService): string => {
+    return service.destination?.[0]?.locationName || 'Unknown';
+  };
+
+  if (loading && !data) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-2xl font-mono">LOADING...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full border-2 border-black p-8">
+          <div className="text-xl font-mono mb-4">ERROR</div>
+          <div className="font-mono text-sm mb-6">{error}</div>
+          <button
+            onClick={onReset}
+            className="w-full bg-black text-white py-2 font-mono text-sm"
+          >
+            RESET
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="border-b-2 border-black pb-4 mb-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-mono tracking-tight">
+              {data?.locationName || stationCode}
+            </h1>
+            <div className="text-sm font-mono mt-1 text-gray-600">
+              UPDATED: {lastUpdate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
+          </div>
+          <button
+            onClick={onReset}
+            className="border-2 border-black px-4 py-2 font-mono text-xs hover:bg-black hover:text-white transition-colors"
+          >
+            RESET
+          </button>
+        </div>
+
+        {/* Messages */}
+        {data?.nrccMessages && data.nrccMessages.length > 0 && (
+          <div className="border-2 border-black p-4 mb-6 bg-black text-white">
+            {data.nrccMessages.map((msg, idx) => (
+              <div key={idx} className="font-mono text-xs leading-relaxed">
+                {msg}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Departures Table */}
+        <div className="border-2 border-black">
+          {/* Table Header */}
+          <div className="grid grid-cols-12 gap-4 p-4 border-b-2 border-black bg-black text-white font-mono text-xs md:text-sm">
+            <div className="col-span-2">TIME</div>
+            <div className="col-span-5">DESTINATION</div>
+            <div className="col-span-2">PLAT</div>
+            <div className="col-span-3">STATUS</div>
+          </div>
+
+          {/* Table Body */}
+          {!data?.trainServices || data.trainServices.length === 0 ? (
+            <div className="p-8 text-center font-mono text-gray-600">
+              NO DEPARTURES
+            </div>
+          ) : (
+            data.trainServices.map((service, idx) => (
+              <div
+                key={service.serviceID || idx}
+                className={`grid grid-cols-12 gap-4 p-4 font-mono text-sm md:text-base ${
+                  idx !== data.trainServices!.length - 1 ? 'border-b border-black' : ''
+                }`}
+              >
+                <div className="col-span-2 font-bold">{service.std}</div>
+                <div className="col-span-5 truncate">{getDestinationName(service)}</div>
+                <div className="col-span-2">{service.platform || '-'}</div>
+                <div className="col-span-3 font-bold">{formatTime(service.etd)}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-4 text-xs font-mono text-gray-600 text-center">
+          AUTO-REFRESH: {REFRESH_INTERVAL / 1000}S
+        </div>
+      </div>
+    </div>
+  );
+}
