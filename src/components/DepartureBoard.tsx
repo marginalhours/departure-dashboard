@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
-import { RailApiService } from '../services/railApi';
-import { ApiResponse, TrainService } from '../types';
-import { HeroCountdown } from './HeroCountdown';
-import { parseTrainTime, getMinutesUntilDeparture } from '../utils/timeUtils';
+import { useEffect, useState, useMemo } from "react";
+import { RailApiService } from "../services/railApi";
+import { ApiResponse, TrainService } from "../types";
+import { HeroCountdown } from "./HeroCountdown";
+import { parseTrainTime, getMinutesUntilDeparture } from "../utils/timeUtils";
 
 interface DepartureBoardProps {
   apiKey: string;
@@ -10,7 +10,11 @@ interface DepartureBoardProps {
   onReset: () => void;
 }
 
-export default function DepartureBoard({ apiKey, stationCode, onReset }: DepartureBoardProps) {
+export default function DepartureBoard({
+  apiKey,
+  stationCode,
+  onReset,
+}: DepartureBoardProps) {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +32,9 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
       setData(response);
       setLastUpdate(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch departures');
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch departures"
+      );
     } finally {
       setLoading(false);
     }
@@ -49,14 +55,14 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
   }, []);
 
   const formatTime = (time: string): string => {
-    if (time === 'On time') return 'ON TIME';
-    if (time === 'Cancelled') return 'CANC';
-    if (time === 'Delayed') return 'DELAY';
+    if (time === "On time") return "ON TIME";
+    if (time === "Cancelled") return "CANC";
+    if (time === "Delayed") return "DELAY";
     return time;
   };
 
   const getDestinationName = (service: TrainService): string => {
-    return service.destination?.[0]?.locationName || 'Unknown';
+    return service.destination?.[0]?.locationName || "Unknown";
   };
 
   // Select all trains departing within 8 minutes for hero units
@@ -68,12 +74,23 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
         const departureTime = parseTrainTime(train.std, train.etd);
         if (!departureTime) return null;
 
-        const minutesUntil = getMinutesUntilDeparture(departureTime, currentTime);
+        const minutesUntil = getMinutesUntilDeparture(
+          departureTime,
+          currentTime
+        );
         if (minutesUntil > 8 || minutesUntil <= 0) return null;
 
         return { train, departureTime, minutesUntil };
       })
-      .filter((item): item is { train: TrainService; departureTime: Date; minutesUntil: number } => item !== null)
+      .filter(
+        (
+          item
+        ): item is {
+          train: TrainService;
+          departureTime: Date;
+          minutesUntil: number;
+        } => item !== null
+      )
       .sort((a, b) => a.minutesUntil - b.minutesUntil);
 
     return eligible;
@@ -114,7 +131,12 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
               {data?.locationName || stationCode}
             </h1>
             <div className="text-sm font-mono mt-1 text-gray-600">
-              UPDATED: {lastUpdate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              UPDATED:{" "}
+              {lastUpdate.toLocaleTimeString("en-GB", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
             </div>
           </div>
           <button
@@ -157,8 +179,8 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
           <div className="grid grid-cols-12 gap-4 p-4 border-b-2 border-black bg-black text-white font-mono text-xs md:text-sm">
             <div className="col-span-2">TIME</div>
             <div className="col-span-5">DESTINATION</div>
-            <div className="col-span-2">PLAT</div>
-            <div className="col-span-3">STATUS</div>
+            <div className="col-span-2">PLATFORM</div>
+            <div className="col-span-3">DEPARTING</div>
           </div>
 
           {/* Table Body */}
@@ -169,35 +191,94 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
           ) : (
             data.trainServices.map((service, idx) => {
               // Check if this service is in the selected trains
-              const isHighlighted = selectedTrains.some(st =>
+              const isHighlighted = selectedTrains.some((st) =>
                 st.train.serviceID && service.serviceID
                   ? st.train.serviceID === service.serviceID
                   : st.train.std === service.std &&
                     st.train.etd === service.etd &&
-                    getDestinationName(st.train) === getDestinationName(service) &&
+                    getDestinationName(st.train) ===
+                      getDestinationName(service) &&
                     st.train.platform === service.platform
               );
 
-              // Check if train is delayed or cancelled
-              const isDelayed = service.etd === 'Delayed';
-              const isCancelled = service.etd === 'Cancelled';
-              const isDisrupted = isDelayed || isCancelled;
+              // Check if train is cancelled
+              const isCancelled = service.etd === "Cancelled";
+
+              // Calculate delay in minutes
+              const hasIndefiniteDelay = service.etd === "Delayed";
+              let delayMinutes = 0;
+
+              if (
+                !isCancelled &&
+                service.etd !== "On time" &&
+                !hasIndefiniteDelay
+              ) {
+                // Parse both times to calculate delay
+                const stdMatch = service.std.match(/^(\d{2}):(\d{2})$/);
+                const etdMatch = service.etd.match(/^(\d{2}):(\d{2})$/);
+
+                if (stdMatch && etdMatch) {
+                  const stdMinutes =
+                    parseInt(stdMatch[1]) * 60 + parseInt(stdMatch[2]);
+                  const etdMinutes =
+                    parseInt(etdMatch[1]) * 60 + parseInt(etdMatch[2]);
+                  delayMinutes = etdMinutes - stdMinutes;
+
+                  // Handle midnight crossover
+                  if (delayMinutes < -720) delayMinutes += 1440;
+                  if (delayMinutes > 720) delayMinutes -= 1440;
+                }
+              }
+
+              const isDelayed = hasIndefiniteDelay || delayMinutes > 0;
+
+              // Determine underline color based on delay severity
+              let departureUnderlineClass = "";
+              if (isDelayed && !isCancelled) {
+                if (hasIndefiniteDelay || delayMinutes >= 10) {
+                  departureUnderlineClass = "underline decoration-red-600 decoration-4"; // Bright red for severe delays
+                } else if (delayMinutes > 0) {
+                  departureUnderlineClass = "underline decoration-red-400 decoration-4"; // Light red for minor delays
+                }
+              }
 
               return (
                 <div
                   key={service.serviceID || idx}
                   className={`grid grid-cols-12 gap-4 p-4 font-mono text-sm md:text-base transition-colors ${
-                    isHighlighted ? 'bg-gray-50' : ''
-                  } ${
-                    isDisrupted ? 'bg-red-50' : ''
-                  } ${
-                    idx !== data.trainServices!.length - 1 ? 'border-b border-black' : ''
+                    isHighlighted ? "bg-gray-50" : ""
+                  } ${isCancelled ? "bg-gray-100 opacity-60" : ""} ${
+                    idx !== data.trainServices!.length - 1
+                      ? "border-b border-black"
+                      : ""
                   }`}
                 >
-                  <div className="col-span-2 font-bold">{service.std}</div>
-                  <div className="col-span-5 truncate">{getDestinationName(service)}</div>
-                  <div className="col-span-2">{service.platform || '-'}</div>
-                  <div className={`col-span-3 font-bold ${isDisrupted ? 'text-red-600' : ''}`}>
+                  <div
+                    className={`col-span-2 font-bold ${
+                      isCancelled ? "text-gray-400" : ""
+                    }`}
+                  >
+                    {service.std}
+                  </div>
+                  <div
+                    className={`col-span-5 truncate ${
+                      isCancelled ? "text-gray-400 line-through" : ""
+                    }`}
+                  >
+                    {getDestinationName(service)}
+                  </div>
+                  <div
+                    className={`col-span-2 ${
+                      isCancelled ? "text-gray-400" : ""
+                    }`}
+                  >
+                    {service.platform || "-"}
+                  </div>
+                  <div
+                    className={`col-span-3 font-bold ${
+                      isCancelled ? "text-gray-400" : ""
+                    } ${departureUnderlineClass}`}
+                  >
                     {formatTime(service.etd)}
                   </div>
                 </div>
