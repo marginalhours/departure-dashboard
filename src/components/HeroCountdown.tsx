@@ -31,30 +31,53 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
   const radius = isPrimary ? 100 : 70;
   const strokeWidth = isPrimary ? 10 : 7;
   const circumference = 2 * Math.PI * radius;
-  const center = radius + strokeWidth;
+  const center = radius + strokeWidth + 8; // Extra padding for warning arc
 
   // Calculate progress (0 to 1, where 1 is full circle at 8 minutes)
   const maxMinutes = 8;
   const progress = Math.min(Math.max(minutesRemaining / maxMinutes, 0), 1);
 
   // Stroke dash offset for progress circle
-  // Starts full (5 min) and decreases as time passes
+  // Starts full (8 min) and decreases as time passes
   const strokeDashoffset = circumference * (1 - progress);
 
   // Color changes at 3 minutes
-  const strokeColor = minutesRemaining > 3 ? "#000000" : "#ff6467";
+  const strokeColor = minutesRemaining > 3 ? "#000000" : "#a0a0a0";
 
-  // 3-minute marker position
-  // At 3 minutes remaining, we're at 37.5% progress (3/8)
-  // Circle starts at top (12 o'clock) due to -90deg rotation
-  // 3 minutes = 37.5% around = 135 degrees from top
-  const threeMinuteProgress = 3 / maxMinutes;
-  const threeMinuteAngle = threeMinuteProgress * 360;
-  const markerRadius = isPrimary ? 7 : 5;
-  const markerX =
-    center + radius * Math.cos((threeMinuteAngle * Math.PI) / 180);
-  const markerY =
-    center + radius * Math.sin((threeMinuteAngle * Math.PI) / 180);
+  const warningZoneAngle = (3 / maxMinutes) * 360; // 135 degrees
+  const startAngle = warningZoneAngle; // 135 degrees
+
+  // Tangent line coordinates - extends from outer edge toward center
+  const tangentSpacing = 2;
+  const tangentLength = 10;
+  const tangentInnerRadius =
+    strokeWidth + tangentSpacing + radius - strokeWidth / 2;
+  const tangentOuterRadius = tangentInnerRadius + tangentLength;
+
+  // 3-minute marker tangent (135 degrees)
+  const innerX =
+    center + tangentInnerRadius * Math.cos((startAngle * Math.PI) / 180);
+  const innerY =
+    center + tangentInnerRadius * Math.sin((startAngle * Math.PI) / 180);
+  const outerX =
+    center + tangentOuterRadius * Math.cos((startAngle * Math.PI) / 180);
+  const outerY =
+    center + tangentOuterRadius * Math.sin((startAngle * Math.PI) / 180);
+
+  // Origin marker tangent (0 degrees / 360 degrees)
+  const originAngle = 360;
+  const originInnerX =
+    center + tangentInnerRadius * Math.cos((originAngle * Math.PI) / 180);
+  const originInnerY =
+    center + tangentInnerRadius * Math.sin((originAngle * Math.PI) / 180);
+  const originOuterX =
+    center + tangentOuterRadius * Math.cos((originAngle * Math.PI) / 180);
+  const originOuterY =
+    center + tangentOuterRadius * Math.sin((originAngle * Math.PI) / 180);
+
+  // Arc connecting the outer ends of the two tangents
+  // Goes from origin (0 deg) to 3-minute mark (135 deg) - shortest path
+  const connectingArcPath = `M ${originOuterX} ${originOuterY} A ${tangentOuterRadius} ${tangentOuterRadius} 0 0 1 ${outerX} ${outerY}`;
 
   const destination = getDestinationName(train);
   const platform = train.platform || "TBA";
@@ -83,6 +106,34 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
               strokeWidth={strokeWidth}
             />
 
+            {/* Tangent line - marks 3-minute threshold */}
+            <line
+              x1={innerX}
+              y1={innerY}
+              x2={outerX}
+              y2={outerY}
+              stroke="#000000"
+              strokeWidth={2}
+            />
+
+            {/* Tangent line - marks origin (0 minutes / departure time) */}
+            <line
+              x1={originInnerX}
+              y1={originInnerY}
+              x2={originOuterX}
+              y2={originOuterY}
+              stroke="#000000"
+              strokeWidth={2}
+            />
+
+            {/* Connecting arc - links the two tangent markers */}
+            <path
+              d={connectingArcPath}
+              fill="none"
+              stroke="#000000"
+              strokeWidth={2}
+            />
+
             {/* Progress circle (black or gray) */}
             <circle
               cx={center}
@@ -97,15 +148,6 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
               style={{
                 transition: "stroke 0.3s ease, stroke-dashoffset 0.3s ease",
               }}
-            />
-
-            {/* 3-minute marker (small circle on the edge) */}
-            <circle
-              cx={markerX}
-              cy={markerY}
-              r={markerRadius}
-              fill="#808080"
-              className="opacity-60"
             />
           </svg>
 

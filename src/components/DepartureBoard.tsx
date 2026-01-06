@@ -21,7 +21,7 @@ export default function DepartureBoard({
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
-  const REFRESH_INTERVAL = 15000; // 15 seconds
+  const REFRESH_INTERVAL = 20000; // 20 seconds
 
   const fetchDepartures = async () => {
     try {
@@ -236,9 +236,11 @@ export default function DepartureBoard({
               let departureUnderlineClass = "";
               if (isDelayed && !isCancelled) {
                 if (hasIndefiniteDelay || delayMinutes >= 10) {
-                  departureUnderlineClass = "underline decoration-red-600 decoration-4"; // Bright red for severe delays
+                  departureUnderlineClass =
+                    "underline decoration-red-600 decoration-4"; // Bright red for severe delays
                 } else if (delayMinutes > 0) {
-                  departureUnderlineClass = "underline decoration-red-400 decoration-4"; // Light red for minor delays
+                  departureUnderlineClass =
+                    "underline decoration-red-400 decoration-4"; // Light red for minor delays
                 }
               }
 
