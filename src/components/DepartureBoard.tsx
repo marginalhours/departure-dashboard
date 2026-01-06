@@ -17,7 +17,7 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
-  const REFRESH_INTERVAL = 5000; // 5 seconds
+  const REFRESH_INTERVAL = 15000; // 15 seconds
 
   const fetchDepartures = async () => {
     try {
@@ -59,9 +59,9 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
     return service.destination?.[0]?.locationName || 'Unknown';
   };
 
-  // Select the next train departing within 5 minutes for hero unit
-  const selectedTrain = useMemo(() => {
-    if (!data?.trainServices) return null;
+  // Select all trains departing within 8 minutes for hero units
+  const selectedTrains = useMemo(() => {
+    if (!data?.trainServices) return [];
 
     const eligible = data.trainServices
       .map((train) => {
@@ -69,14 +69,14 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
         if (!departureTime) return null;
 
         const minutesUntil = getMinutesUntilDeparture(departureTime, currentTime);
-        if (minutesUntil > 5 || minutesUntil <= 0) return null;
+        if (minutesUntil > 8 || minutesUntil <= 0) return null;
 
         return { train, departureTime, minutesUntil };
       })
       .filter((item): item is { train: TrainService; departureTime: Date; minutesUntil: number } => item !== null)
       .sort((a, b) => a.minutesUntil - b.minutesUntil);
 
-    return eligible.length > 0 ? eligible[0] : null;
+    return eligible;
   }, [data?.trainServices, currentTime]);
 
   if (loading && !data) {
@@ -136,13 +136,19 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
           </div>
         )}
 
-        {/* Hero Countdown - Next Departing Train */}
-        {selectedTrain && (
-          <HeroCountdown
-            train={selectedTrain.train}
-            departureTime={selectedTrain.departureTime}
-            currentTime={currentTime}
-          />
+        {/* Hero Countdowns - All Trains Departing in Next 8 Minutes */}
+        {selectedTrains.length > 0 && (
+          <div className="mb-6">
+            {selectedTrains.map((selectedTrain, idx) => (
+              <HeroCountdown
+                key={selectedTrain.train.serviceID || idx}
+                train={selectedTrain.train}
+                departureTime={selectedTrain.departureTime}
+                currentTime={currentTime}
+                isPrimary={idx === 0}
+              />
+            ))}
+          </div>
         )}
 
         {/* Departures Table */}
@@ -162,15 +168,20 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
             </div>
           ) : (
             data.trainServices.map((service, idx) => {
-              // Compare using serviceID if available, otherwise use a combination of std, destination, and platform
-              const isHighlighted = selectedTrain
-                ? selectedTrain.train.serviceID && service.serviceID
-                  ? selectedTrain.train.serviceID === service.serviceID
-                  : selectedTrain.train.std === service.std &&
-                    selectedTrain.train.etd === service.etd &&
-                    getDestinationName(selectedTrain.train) === getDestinationName(service) &&
-                    selectedTrain.train.platform === service.platform
-                : false;
+              // Check if this service is in the selected trains
+              const isHighlighted = selectedTrains.some(st =>
+                st.train.serviceID && service.serviceID
+                  ? st.train.serviceID === service.serviceID
+                  : st.train.std === service.std &&
+                    st.train.etd === service.etd &&
+                    getDestinationName(st.train) === getDestinationName(service) &&
+                    st.train.platform === service.platform
+              );
+
+              // Check if train is delayed or cancelled
+              const isDelayed = service.etd === 'Delayed';
+              const isCancelled = service.etd === 'Cancelled';
+              const isDisrupted = isDelayed || isCancelled;
 
               return (
                 <div
@@ -178,13 +189,17 @@ export default function DepartureBoard({ apiKey, stationCode, onReset }: Departu
                   className={`grid grid-cols-12 gap-4 p-4 font-mono text-sm md:text-base transition-colors ${
                     isHighlighted ? 'bg-gray-50' : ''
                   } ${
+                    isDisrupted ? 'bg-red-50' : ''
+                  } ${
                     idx !== data.trainServices!.length - 1 ? 'border-b border-black' : ''
                   }`}
                 >
                   <div className="col-span-2 font-bold">{service.std}</div>
                   <div className="col-span-5 truncate">{getDestinationName(service)}</div>
                   <div className="col-span-2">{service.platform || '-'}</div>
-                  <div className="col-span-3 font-bold">{formatTime(service.etd)}</div>
+                  <div className={`col-span-3 font-bold ${isDisrupted ? 'text-red-600' : ''}`}>
+                    {formatTime(service.etd)}
+                  </div>
                 </div>
               );
             })
