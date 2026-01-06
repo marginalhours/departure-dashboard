@@ -31,7 +31,10 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
   const radius = isPrimary ? 100 : 70;
   const strokeWidth = isPrimary ? 10 : 7;
   const circumference = 2 * Math.PI * radius;
-  const center = radius + strokeWidth + 8; // Extra padding for warning arc
+  const jacketStrokeWidth = strokeWidth * (5 / 3); // 1.67x width (2/3 wider)
+  const halfJacketWidth = jacketStrokeWidth / 2;
+  const jacketSpacing = 2; // Whitespace between jacket and track
+  const center = radius + strokeWidth / 2 + jacketSpacing + halfJacketWidth + 2; // Padding for outer jacket
 
   // Calculate progress (0 to 1, where 1 is full circle at 8 minutes)
   const maxMinutes = 8;
@@ -45,44 +48,28 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
   const strokeColor = minutesRemaining > 3 ? "#000000" : "#a0a0a0";
 
   const warningZoneAngle = (3 / maxMinutes) * 360; // 135 degrees
-  const startAngle = warningZoneAngle; // 135 degrees
 
-  // Tangent line coordinates - extends from outer edge toward center
-  const tangentSpacing = 2;
-  const tangentLength = 10;
-  const tangentInnerRadius =
-    strokeWidth + tangentSpacing + radius - strokeWidth / 2;
-  const tangentOuterRadius = tangentInnerRadius + tangentLength;
+  // Jacket/wrap parameters - split into inner and outer arcs wrapping the track
+  const innerJacketRadius = radius - strokeWidth / 2 - jacketSpacing - halfJacketWidth / 2;
+  const outerJacketRadius = radius + strokeWidth / 2 + jacketSpacing + halfJacketWidth / 2;
 
-  // 3-minute marker tangent (135 degrees)
-  const innerX =
-    center + tangentInnerRadius * Math.cos((startAngle * Math.PI) / 180);
-  const innerY =
-    center + tangentInnerRadius * Math.sin((startAngle * Math.PI) / 180);
-  const outerX =
-    center + tangentOuterRadius * Math.cos((startAngle * Math.PI) / 180);
-  const outerY =
-    center + tangentOuterRadius * Math.sin((startAngle * Math.PI) / 180);
+  // Create jacket paths from origin (0 deg) to 3-minute mark (135 deg)
+  const startAngle = 0; // Origin at top
+  const endAngle = warningZoneAngle; // 135 degrees
 
-  // Origin marker tangent (0 degrees / 360 degrees)
-  const originAngle = 360;
-  const originInnerX =
-    center + tangentInnerRadius * Math.cos((originAngle * Math.PI) / 180);
-  const originInnerY =
-    center + tangentInnerRadius * Math.sin((originAngle * Math.PI) / 180);
-  const originOuterX =
-    center + tangentOuterRadius * Math.cos((originAngle * Math.PI) / 180);
-  const originOuterY =
-    center + tangentOuterRadius * Math.sin((originAngle * Math.PI) / 180);
+  // Inner jacket arc
+  const innerStartX = center + innerJacketRadius * Math.cos((startAngle * Math.PI) / 180);
+  const innerStartY = center + innerJacketRadius * Math.sin((startAngle * Math.PI) / 180);
+  const innerEndX = center + innerJacketRadius * Math.cos((endAngle * Math.PI) / 180);
+  const innerEndY = center + innerJacketRadius * Math.sin((endAngle * Math.PI) / 180);
+  const innerJacketPath = `M ${innerStartX} ${innerStartY} A ${innerJacketRadius} ${innerJacketRadius} 0 0 1 ${innerEndX} ${innerEndY}`;
 
-  // Combined path: both tangents + connecting arc for smooth corners
-  // Start at inner end of 3-min tangent, draw out, arc around, draw back in at origin
-  const warningIndicatorPath = `
-    M ${innerX} ${innerY}
-    L ${outerX} ${outerY}
-    A ${tangentOuterRadius} ${tangentOuterRadius} 0 0 0 ${originOuterX} ${originOuterY}
-    L ${originInnerX} ${originInnerY}
-  `.trim();
+  // Outer jacket arc
+  const outerStartX = center + outerJacketRadius * Math.cos((startAngle * Math.PI) / 180);
+  const outerStartY = center + outerJacketRadius * Math.sin((startAngle * Math.PI) / 180);
+  const outerEndX = center + outerJacketRadius * Math.cos((endAngle * Math.PI) / 180);
+  const outerEndY = center + outerJacketRadius * Math.sin((endAngle * Math.PI) / 180);
+  const outerJacketPath = `M ${outerStartX} ${outerStartY} A ${outerJacketRadius} ${outerJacketRadius} 0 0 1 ${outerEndX} ${outerEndY}`;
 
   const destination = getDestinationName(train);
   const platform = train.platform || "TBA";
@@ -101,6 +88,24 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
             height={center * 2}
             className="transform -rotate-90"
           >
+            {/* Inner jacket - inside the track */}
+            <path
+              d={innerJacketPath}
+              fill="none"
+              stroke="#d0d0d0"
+              strokeWidth={halfJacketWidth}
+              strokeLinecap="butt"
+            />
+
+            {/* Outer jacket - outside the track */}
+            <path
+              d={outerJacketPath}
+              fill="none"
+              stroke="#d0d0d0"
+              strokeWidth={halfJacketWidth}
+              strokeLinecap="butt"
+            />
+
             {/* Background circle (light gray) */}
             <circle
               cx={center}
@@ -109,15 +114,6 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
               fill="none"
               stroke="#e5e5e5"
               strokeWidth={strokeWidth}
-            />
-
-            {/* Warning indicator - combined tangents + arc for smooth corners */}
-            <path
-              d={warningIndicatorPath}
-              fill="none"
-              stroke="#000000"
-              strokeWidth={2}
-              strokeLinejoin="round"
             />
 
             {/* Progress circle (black or gray) */}
