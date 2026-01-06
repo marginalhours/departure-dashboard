@@ -44,14 +44,18 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
   // Starts full (8 min) and decreases as time passes
   const strokeDashoffset = circumference * (1 - progress);
 
-  // Color changes at 3 minutes
-  const strokeColor = minutesRemaining > 3 ? "#000000" : "#a0a0a0";
+  // Progress bar stays black
+  const strokeColor = "#000000";
 
   const warningZoneAngle = (3 / maxMinutes) * 360; // 135 degrees
 
   // Jacket/wrap parameters - split into inner and outer arcs wrapping the track
   const innerJacketRadius = radius - strokeWidth / 2 - jacketSpacing - halfJacketWidth / 2;
   const outerJacketRadius = radius + strokeWidth / 2 + jacketSpacing + halfJacketWidth / 2;
+
+  // Jacket stays grey, pulses when in final 3 minutes
+  const jacketColor = "#d0d0d0";
+  const inWarningZone = minutesRemaining <= 3;
 
   // Create jacket paths from origin (0 deg) to 3-minute mark (135 deg)
   const startAngle = 0; // Origin at top
@@ -92,18 +96,26 @@ export const HeroCountdown: React.FC<HeroCountdownProps> = ({
             <path
               d={innerJacketPath}
               fill="none"
-              stroke="#d0d0d0"
+              stroke={jacketColor}
               strokeWidth={halfJacketWidth}
               strokeLinecap="butt"
+              style={{
+                transition: "stroke 0.3s ease",
+                animation: inWarningZone ? "pulse 2s ease-in-out infinite" : "none",
+              }}
             />
 
             {/* Outer jacket - outside the track */}
             <path
               d={outerJacketPath}
               fill="none"
-              stroke="#d0d0d0"
+              stroke={jacketColor}
               strokeWidth={halfJacketWidth}
               strokeLinecap="butt"
+              style={{
+                transition: "stroke 0.3s ease",
+                animation: inWarningZone ? "pulse 2s ease-in-out infinite" : "none",
+              }}
             />
 
             {/* Background circle (light gray) */}
