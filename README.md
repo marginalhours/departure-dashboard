@@ -56,7 +56,7 @@ npm run deploy
 Edit `src/components/DepartureBoard.tsx` and update the `STATION_CODE` constant:
 
 ```typescript
-const STATION_CODE = 'HGM'; // High Brooms station code
+const STATION_CODE = 'HIB'; // High Brooms station code
 ```
 
 Find station codes at [National Rail station codes](https://www.nationalrail.co.uk/stations_destinations/48541.aspx).
