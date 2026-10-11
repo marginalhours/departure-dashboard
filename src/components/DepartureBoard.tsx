@@ -33,7 +33,7 @@ export default function DepartureBoard({
       setLastUpdate(new Date());
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch departures"
+        err instanceof Error ? err.message : "Failed to fetch departures",
       );
     } finally {
       setLoading(false);
@@ -76,7 +76,7 @@ export default function DepartureBoard({
 
         const minutesUntil = getMinutesUntilDeparture(
           departureTime,
-          currentTime
+          currentTime,
         );
         if (minutesUntil > 8 || minutesUntil <= 0) return null;
 
@@ -84,12 +84,12 @@ export default function DepartureBoard({
       })
       .filter(
         (
-          item
+          item,
         ): item is {
           train: TrainService;
           departureTime: Date;
           minutesUntil: number;
-        } => item !== null
+        } => item !== null,
       )
       .sort((a, b) => a.minutesUntil - b.minutesUntil);
 
@@ -151,9 +151,11 @@ export default function DepartureBoard({
         {data?.nrccMessages && data.nrccMessages.length > 0 && (
           <div className="border-2 border-black p-4 mb-6 bg-black text-white">
             {data.nrccMessages.map((msg, idx) => (
-              <div key={idx} className="font-mono text-xs leading-relaxed">
-                {msg.value}
-              </div>
+              <div
+                key={idx}
+                className="font-mono text-xs leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: msg.value }}
+              ></div>
             ))}
           </div>
         )}
@@ -198,7 +200,7 @@ export default function DepartureBoard({
                     st.train.etd === service.etd &&
                     getDestinationName(st.train) ===
                       getDestinationName(service) &&
-                    st.train.platform === service.platform
+                    st.train.platform === service.platform,
               );
 
               // Check if train is cancelled
